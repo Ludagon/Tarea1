@@ -1,0 +1,13 @@
+Problems so far:
+
+1)Paralelism
+
+How to solve: 
+    -ClusterJs
+        Pros:
+            I will be able to create a new tab for every CPU my machine has 
+            and work with them using Paralelism
+        Cons:
+            Not many tabs will be working at the same time.
+
+    ¿Multi-Threading?
