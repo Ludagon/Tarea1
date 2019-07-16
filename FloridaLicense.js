@@ -30,6 +30,7 @@ async function navigateTo(page, pageTo) {
         await page.waitFor('input[name = "SearchGo"]');
         await page.click('input[name ="SearchGo"]');
         await page.waitForNavigation({ waitUntil: 'domcontentloaded' })
+            // await getLinks(page, links);
     } catch (error) {
 
     }
