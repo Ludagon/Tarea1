@@ -2,77 +2,45 @@ const puppeteer = require('puppeteer');
 
 const BASE_URL = 'https://www.myfloridalicense.com/';
 const SEARCH_URL = 'https://www.myfloridalicense.com/wl11.asp?mode=1&SID=&brd=&typ=';
+const firebase = require("firebase");
+require("firebase/firestore");
+const config = require('./app');
+firebase.initializeApp(config)
+const db = firebase.firestore()
 
 let browser = null;
-
-//Ten pages;
 let page = null;
-let page2 = null;
-let page3 = null;
-let page4 = null;
-let page5 = null;
-let page6 = null;
-let page7 = null;
-let page8 = null;
-let page9 = null;
-let page10 = null;
 
-let links = [];
 let pages = [];
+let promises = [];
 
-const FloridaLicense = {
-    //start puppeter and go to page
-    initialize: async() => {
+async function getLinks(page, links) {
+    await page.waitFor("table table table table table tbody > tr:nth-child(2) > td:nth-child(2)");
+    for (let i = 2; i < 101; i = i + 2) {
+        link = BASE_URL + await page.$eval(`table table table table table tbody > tr:nth-child(${i}) > td:nth-child(2) a`, a => a.getAttribute('href'));
+        links.push(link);
+    }
+}
 
-        browser = await puppeteer.launch({
-            headless: false
-        });
+async function navigateTo(page, pageTo) {
+    try {
+        await page.waitFor('input[name ="Page"]');
+        await page.click('input[name ="Page"]');
+        await page.keyboard.type(`${pageTo}`);
+        await page.waitFor('input[name = "SearchGo"]');
+        await page.click('input[name ="SearchGo"]');
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded' })
+    } catch (error) {
 
-        //10 new tabs
-        page = await browser.newPage();
-        page2 = await browser.newPage();
-        page3 = await browser.newPage();
-        page4 = await browser.newPage();
-        page5 = await browser.newPage();
-        page6 = await browser.newPage();
-        page7 = await browser.newPage();
-        page8 = await browser.newPage();
-        page9 = await browser.newPage();
-        page10 = await browser.newPage();
-
-        //Fill the array of pages to use after in a for loop 
-        pages.push(page);
-        pages.push(page2);
-        pages.push(page3);
-        pages.push(page4);
-        pages.push(page5);
-        pages.push(page6);
-        pages.push(page7);
-        pages.push(page8);
-        pages.push(page9);
-        pages.push(page10);
-
-        //go to page 
-        await page.goto(SEARCH_URL);
-        await page2.goto(SEARCH_URL);
-        await page3.goto(SEARCH_URL);
-        await page4.goto(SEARCH_URL);
-        await page5.goto(SEARCH_URL);
-        await page6.goto(SEARCH_URL);
-        await page7.goto(SEARCH_URL);
-        await page8.goto(SEARCH_URL);
-        await page9.goto(SEARCH_URL);
-        await page10.goto(SEARCH_URL);
-
-    },
-    selectDropdown: async() => {
-        // for (let page of pages) {
-        //Select License Category
+    }
+}
+async function selectOptions(page) {
+    try {
         await page.waitFor('select[name="Board"]');
         await page.select('select[name="Board"]', '400');
 
         //Select License Type
-        await page.waitFor('select[name="LicenseType"]');
+        await page.waitFor('select[name="LicenseType"]')
         await page.select('select[name="LicenseType"]', '4006');
 
         //Select Country 
@@ -84,33 +52,70 @@ const FloridaLicense = {
         await page.select('select[name="RecsPerPage"]', '50');
 
         //Click search
+        await page.waitFor('input[value="Search"]');
         await page.click('input[value ="Search"]');
-        await page.waitFor("table table table table table tbody > tr:nth-child(2) > td:nth-child(2)");
 
-        // First i need #Pages
-        // #pages / 10 --> 296 / 10 = 29,6 --> +1 --> floor() --- > 30 
-        // 30 times my ten tabs will change making page 1 -- > page 11 and so on
-        // ¿ How ? -- Typing on #page Selector and then clicking the buttom 
+    } catch (e) {
+        console.log(e);
+    }
+}
 
-        //Index will be prob need it 
+const FloridaLicense = {
+    //start puppeter and go to page
+    initialize: async() => {
 
+        browser = await puppeteer.launch({
+            headless: true
+        });
 
-        //getting every link 
-        for (let i = 2; i < 101; i = i + 2) {
-            link = BASE_URL + await page.$eval(`table table table table table tbody > tr:nth-child(${i}) > td:nth-child(2) a`, a => a.getAttribute('href'));
-            links.push(link);
+        for (let i = 0; i < 10; i++) {
+            promises.push(browser.newPage());
         }
 
-        debugger;
-        // }
-
-
-
-    },
-    //PROB USEFULL
-    gettingPages: async() => {
-
-        return await browser.pages();
+        await Promise.all(promises).then(async(values) => {
+            for (const page of values) {
+                pages.push(page);
+                page.goto(SEARCH_URL, { waitUntil: 'domcontentloaded' });
+            }
+        });
+        await Promise.all(pages.map(async(value) => await selectOptions(value))).then(async() => {
+            console.log('All options selected');
+        });
+        var i = 0;
+        // 296 is total pages --> Prob going to scrap to improve code
+        while (i <= 30) {
+            var links = [
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                []
+            ]
+            await Promise.all(pages.map(async(value) => await navigateTo(value, pages.indexOf(value) + 1 + 10 * i))).then(async() => {
+                await Promise.all(pages.map(async(value) => await getLinks(value, links[pages.indexOf(value)]))).then(async() => {
+                    for (let i = 0; i < links.length; i++) {
+                        var Batch = {
+                            links: links[i],
+                            status: "Not Scrapped",
+                            LastModifiedAt: "Fecha"
+                        }
+                        db.collection("Batches").add(Batch).then(function(docRef) {
+                                console.log("Document written with ID: ", docRef.id);
+                            })
+                            .catch(function(error) {
+                                console.error("Error adding document: ", error);
+                            });
+                    }
+                    i++;
+                })
+            });
+        }
+        this.FloridaLicense.end();
     },
 
     end: async() => {

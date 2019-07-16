@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/Ludagon/Tarea1#readme",
   "dependencies": {
+    "firebase": "^6.3.0",
     "puppeteer": "^1.18.1"
   }
 }
