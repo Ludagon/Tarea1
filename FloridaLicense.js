@@ -69,7 +69,7 @@ const FloridaLicense = {
             headless: true
         });
 
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 8; i++) {
             promises.push(browser.newPage());
         }
 
@@ -84,7 +84,8 @@ const FloridaLicense = {
         });
         var i = 0;
         // 296 is total pages --> Prob going to scrap to improve code
-        while (i <= 30) {
+        // 296 / 8 = 37  q=)
+        while (i <= 37) {
             var links = [
                 [],
                 [],
@@ -94,16 +95,16 @@ const FloridaLicense = {
                 [],
                 [],
                 [],
-                [],
-                []
             ]
             await Promise.all(pages.map(async(value) => await navigateTo(value, pages.indexOf(value) + 1 + 10 * i))).then(async() => {
                 await Promise.all(pages.map(async(value) => await getLinks(value, links[pages.indexOf(value)]))).then(async() => {
                     for (let i = 0; i < links.length; i++) {
+                        var Fecha = new Date();
+                        var timestamp = Fecha.getTime();
                         var Batch = {
                             links: links[i],
                             status: "Not Scrapped",
-                            LastModifiedAt: "Fecha"
+                            LastModifiedAt: timestamp
                         }
                         db.collection("Batches").add(Batch).then(function(docRef) {
                                 console.log("Document written with ID: ", docRef.id);
